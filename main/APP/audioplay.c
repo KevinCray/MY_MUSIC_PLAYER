@@ -2,6 +2,8 @@
 
 __audiodev g_audiodev;
 
+uint8_t g_audio_output_mode = 0; //默认扬声器模式
+
 /**
  * @brief       开始trx
  */
@@ -139,20 +141,41 @@ FRESULT atk_dir_sdi(FF_DIR* dp,DWORD ofs)
 }
 
 /**
+ * @brief 从adc的电压值映射到音量
+ */
+
+int map_volume(int raw)
+{
+    int volume = (raw * VOLUME_MAX)/4095;
+    
+    if (volume < 0)
+    {
+        volume = 0;
+    }
+
+    if (volume > VOLUME_MAX)
+    {
+        volume = VOLUME_MAX;
+    }
+    
+    return volume;
+}
+
+/**
  * @brief       播放音乐
  * @param       无  
  */
 void audio_play(void)
 {
-    uint8_t res;
-    FF_DIR wavdir;
-    FILINFO *wavfileinfo;
-    uint8_t *pname;
-    uint16_t totwavnum;
-    uint16_t curindex;
-    uint8_t key;
-    uint32_t temp;
-    uint32_t *wavoffsettbl;
+    uint8_t res;    //读取成功的确认值
+    FF_DIR wavdir;  //定义了一个目录对象
+    FILINFO *wavfileinfo;   //定义了一个文件信息结构体指针
+    uint8_t *pname; //定义了一个文件名指针
+    uint16_t totwavnum; //定义了总的wav文件数量
+    uint16_t curindex; //定义了当前文件索引
+    uint8_t key; //定义了按键值
+    uint32_t temp; //定义了一个临时变量
+    uint32_t *wavoffsettbl; //定义了一个wav文件偏移量表指针
 
     totwavnum = audio_get_tnum((uint8_t *)"0:/MUSIC");          
     
@@ -167,6 +190,7 @@ void audio_play(void)
         curindex = 0;                                          
         while (1)
         {
+            
             temp = wavdir.dptr;                                 
 
             res = f_readdir(&wavdir, wavfileinfo);              
@@ -202,7 +226,7 @@ void audio_play(void)
         strcpy((char *)pname, "0:/MUSIC/");
         strcat((char *)pname, (const char *)wavfileinfo->fname);
         key = audio_play_song(pname);
-
+        
         if (key == KEY1_PRES)      
         {
             if (curindex)
@@ -254,7 +278,7 @@ uint8_t audio_play_song(uint8_t *fname)
             res = wav_play_song(fname);
             break;
         case T_MP3:
-        
+            res = mp3_play_song(fname);
             break;
 
         default:            // 非法文件,自动跳转到下一首

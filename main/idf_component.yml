@@ -1,5 +1,6 @@
 ## IDF Component Manager Manifest File
 dependencies:
+  chmorgan/esp-libhelix-mp3: ^1.0.0
   ## Required IDF version
   idf:
     version: '>=4.1.0'
@@ -15,3 +16,4 @@ dependencies:
   #   # All dependencies of `main` are public by default.
   #   public: true
 
+  

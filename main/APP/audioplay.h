@@ -5,6 +5,11 @@
 #include "wavplay.h"
 #include "exfuns.h"
 #include "myi2s.h"
+#include "adc.h"
+#include "driver/gpio.h"
+#include "mp3play.h"
+
+#define VOLUME_MAX 33
 
 void audio_start(void);
 void audio_stop(void);
@@ -13,6 +18,8 @@ static LBA_t atk_clst2sect(FATFS* fs,DWORD clst);
 FRESULT atk_dir_sdi(FF_DIR* dp,DWORD ofs);
 void audio_play(void);
 uint8_t audio_play_song(uint8_t *fname);
+int map_volume(int raw);
+extern uint8_t g_audio_output_mode;
 
 typedef struct
 {
@@ -23,6 +30,10 @@ typedef struct
                         /* bit1:0,结束播放;1,开启播放 */
 } __audiodev;
 
+
+
 extern __audiodev g_audiodev;
+
+
 
 #endif

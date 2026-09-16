@@ -18,7 +18,9 @@ UINT bytes_write = 0;                       /* 写一次I2S大小 */
 volatile long long int i2s_table_size = 0;  /* 积累每次发送音频数据总大小 */
 esp_err_t i2s_play_end = ESP_FAIL;          /* 播放结束标志位 */
 esp_err_t i2s_play_next_prev = ESP_FAIL;    /* 下一首或者上一首标志位 */
-FSIZE_t file_read_pos = 0;                  /* 记录当前WAV读取位置 */
+FSIZE_t file_read_pos = 0;                  /* 记录当前WAV读取位置 */   
+
+
 
 /**
  * @brief       WAV解析初始化
@@ -140,10 +142,22 @@ void music(void *pvParameters)
     /* ES8388初始化配置，有效降低启动时发出沙沙声 */
     es8388_adda_cfg(1,0);                           /* 打开DAC，关闭ADC */
     es8388_input_cfg(0);                            /* 录音关闭 */
-    es8388_output_cfg(1,1);                         /* 喇叭通道和耳机通道打开，第一个耳机，1开启 */
-    es8388_hpvol_set(10);                           /* 设置耳机 */
-    es8388_spkvol_set(20);                          /* 设置喇叭 max33*/
-    xl9555_pin_write(SPK_EN_IO,0);                  /* 打开喇叭  0开启，1关闭*/
+
+    /*音量max33*/               
+    if (g_audio_output_mode == 0)
+    {
+        xl9555_pin_write(SPK_EN_IO,0);     /* 打开喇叭  0开启，1关闭*/
+        es8388_output_cfg(0,1);            /* 喇叭通道和耳机通道打开，第一个耳机，1开启 */
+        es8388_spkvol_set(10);   
+    }
+    else
+    {
+        xl9555_pin_write(SPK_EN_IO, 1);   // 关喇叭功放
+        es8388_output_cfg(1, 0);         // 关喇叭，开耳机
+        es8388_hpvol_set(10);
+    }
+    
+
     vTaskDelay(pdMS_TO_TICKS(20));
     i2s_tx_write(g_audiodev.tbuf, WAV_TX_BUFSIZE);  /* 先发送一段无声音的数据 */
 
@@ -211,8 +225,23 @@ uint8_t wav_play_song(uint8_t *fname)
     g_audiodev.file = (FIL*)heap_caps_malloc(sizeof(FIL),MALLOC_CAP_DMA);
     g_audiodev.tbuf = heap_caps_malloc(WAV_TX_BUFSIZE, MALLOC_CAP_DMA);       /* 音频数据 */
 
-    myi2s_init();                                   /* I2S初始化 */
+    myi2s_init();                                    /* I2S初始化 */
     vTaskDelay(pdMS_TO_TICKS(50));                  /* 适当延时 */
+    KEY_Init();
+
+    if (g_audio_output_mode == 0)
+    {
+        xl9555_pin_write(SPK_EN_IO,0);
+        es8388_output_cfg(0,1);
+        es8388_spkvol_set(10);
+    }
+    else
+    {
+        xl9555_pin_write(SPK_EN_IO,1);
+        es8388_output_cfg(1,0);
+        es8388_hpvol_set(10);
+    }
+    
 
     if (g_audiodev.file || g_audiodev.tbuf)
     {
@@ -255,8 +284,44 @@ uint8_t wav_play_song(uint8_t *fname)
                             res = KEY0_PRES;
                             break;
                         }
+                        
+                        /*adc读取音量*/
+                        static int last_volume = -1;    //音量初始化，保证每一次开机都更新
+                        uint16_t adc_data = adc_get_result_average(ADC_CHAN ,10);   //获取adc数值
+                        uint8_t volume = map_volume(adc_data);
+                        if (volume != last_volume)
+                        {
+                            es8388_hpvol_set(volume);
+                            es8388_spkvol_set(volume);
+                        }
 
                         key = xl9555_key_scan(0);
+                        
+                        /*使用boot按键切换耳机和扬声器音频*/
+                        static int last_boot_state = 1;
+                        int boot_state = gpio_get_level(BOOT_GPIO_PIN);
+
+                        if (last_boot_state == 1 && boot_state == 0)
+                        {
+                            vTaskDelay(pdMS_TO_TICKS(20));
+                            if (gpio_get_level(BOOT_GPIO_PIN) == 0)
+                            {
+                                g_audio_output_mode = !g_audio_output_mode;
+                                if (g_audio_output_mode == 0)
+                                {
+                                    xl9555_pin_write(SPK_EN_IO,0);
+                                    es8388_output_cfg(0,1);
+                                    es8388_spkvol_set(10);
+                                }
+                                else
+                                {
+                                    xl9555_pin_write(SPK_EN_IO,1);
+                                    es8388_output_cfg(1,0);
+                                    es8388_hpvol_set(10);
+                                }
+                            }
+                        }
+                        last_boot_state = boot_state;
 
                         switch (key)
                         {
