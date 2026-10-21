@@ -3,7 +3,7 @@
 
 #include "driver/gpio.h"
 
-#define LED_GPIO_PIN    GPIO_NUM_1
+#define TRANS_GPIO_PIN    GPIO_NUM_1
 
 enum GPIO_OUTPUT_STATE
 {
@@ -12,8 +12,8 @@ enum GPIO_OUTPUT_STATE
 };
 //LED亮灭
 #define LED(X) do {X?\
-    gpio_set_level(LED_GPIO_PIN, PIN_SET):\
-    gpio_set_level(LED_GPIO_PIN, PIN_RESET);\
+    gpio_set_level(TRANS_GPIO_PIN, PIN_SET):\
+    gpio_set_level(TRANS_GPIO_PIN, PIN_RESET);\
 } while (0);
 
 //LED反转

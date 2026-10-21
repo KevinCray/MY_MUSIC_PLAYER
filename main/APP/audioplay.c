@@ -5,6 +5,15 @@ __audiodev g_audiodev;
 uint8_t g_audio_output_mode = 0; //默认扬声器模式
 
 /**
+ * @brief       判断文件类型是否可以播放
+ * @param       type : exfuns_file_type返回值
+ */
+static uint8_t audio_is_supported(uint8_t type)
+{
+    return (type == T_WAV) || (type == T_MP3);
+}
+
+/**
  * @brief       开始trx
  */
 void audio_start(void)
@@ -50,7 +59,7 @@ uint16_t audio_get_tnum(uint8_t *path)
 
             res = exfuns_file_type(tfileinfo->fname);
             
-            if ((res & 0xF0) == 0x40)
+            if (audio_is_supported(res))
             {
                 rval++; /* 有效文件个数加1 */
             }
@@ -182,6 +191,15 @@ void audio_play(void)
     wavfileinfo = (FILINFO*)malloc(sizeof(FILINFO));
     pname = malloc(255 * 2 + 1);
     wavoffsettbl = malloc(4 * totwavnum);
+
+    if ((wavfileinfo == NULL) || (pname == NULL) || (wavoffsettbl == NULL) || (totwavnum == 0))
+    {
+        printf("audio malloc failed or no music file\r\n");
+        free(wavfileinfo);
+        free(pname);
+        free(wavoffsettbl);
+        return;
+    }
     
     res = f_opendir(&wavdir, "0:/MUSIC");
     
@@ -202,7 +220,7 @@ void audio_play(void)
 
             res = exfuns_file_type(wavfileinfo->fname);
             
-            if ((res & 0xF0) == 0x40)
+            if (audio_is_supported(res))
             {
                 wavoffsettbl[curindex] = temp;                   
                 curindex++;
@@ -215,7 +233,10 @@ void audio_play(void)
 
     while (res == FR_OK)                                        
     {
-        atk_dir_sdi(&wavdir, wavoffsettbl[curindex]);           
+        if (atk_dir_sdi(&wavdir, wavoffsettbl[curindex]) != FR_OK)
+        {
+            break;
+        }
 
         res = f_readdir(&wavdir, wavfileinfo);                  
         if ((res != FR_OK) || (wavfileinfo->fname[0] == 0))

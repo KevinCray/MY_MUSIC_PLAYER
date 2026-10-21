@@ -45,7 +45,17 @@ uint8_t wav_decode_init(uint8_t *fname, __wavctrl *wavx)
     
     ftemp = (FIL*)malloc(sizeof(FIL));
     buf = malloc(512);
+
+    if (ftemp == NULL || buf == NULL)
+    {
+        free(ftemp);
+        free(buf);
+        return 0xFF;
+    }
     
+    memset(ftemp, 0, sizeof(FIL));
+    memset(buf, 0, 512);
+
     if (ftemp && buf)
     {
         res = f_open(ftemp, (TCHAR*)fname, FA_READ);            /* 打开文件 */
@@ -112,7 +122,7 @@ uint8_t wav_decode_init(uint8_t *fname, __wavctrl *wavx)
     free(ftemp);
     free(buf); 
     
-    return 0;
+    return res;
 }
 
 /**

@@ -2,15 +2,15 @@
 
 void KEY_Init(void)
 {
-    gpio_config_t gpio_init_struct = {0};
-    gpio_init_struct.pin_bit_mask = (1ULL << BOOT_GPIO_PIN);
-    gpio_init_struct.mode = GPIO_MODE_INPUT;
-    gpio_init_struct.pull_up_en = GPIO_PULLUP_ENABLE;
-    gpio_init_struct.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    gpio_init_struct.intr_type = GPIO_INTR_DISABLE;
+    gpio_config_t boot_io_conf = {
+        .pin_bit_mask = (1ULL << BOOT_GPIO_PIN),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
 
-    gpio_config(&gpio_init_struct);
-
+    gpio_config(&boot_io_conf);
     
 }
 

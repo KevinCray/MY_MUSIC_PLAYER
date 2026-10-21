@@ -17,6 +17,13 @@
 
 #define configSUPPORT_DYNAMIC_ALLOCATION 1
 
+//-------录音放音工作模式标签
+typedef enum {
+    MODE_IDLE = 0,
+    MODE_PLAY,
+    MODE_RECORD,
+} system_mode_t;
+
 void audio_play_task(void * pvParameters) //注意任务函数签名，必须带有指针
 {
     while (1)
@@ -54,7 +61,7 @@ void app_main(void)
     BaseType_t taskret = xTaskCreate(
         audio_play_task,    //函数指针
         "audio_play",       //任务名称
-        4096,               //栈大小
+        8192,               //栈大小
         NULL,               //指针参数
         5,                  //优先级
         NULL                //任务句柄

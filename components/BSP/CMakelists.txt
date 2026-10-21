@@ -1,4 +1,5 @@
 set(src_dirs
+ADC
 LED
 KEY
 MYI2S
@@ -9,6 +10,7 @@ XL9555
 ES8388
 )
 set(include_dirs
+ADC
 LED
 KEY
 MYI2S

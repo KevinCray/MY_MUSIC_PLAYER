@@ -14,7 +14,6 @@
 void audio_start(void);
 void audio_stop(void);
 uint16_t audio_get_tnum(uint8_t *path);
-static LBA_t atk_clst2sect(FATFS* fs,DWORD clst);
 FRESULT atk_dir_sdi(FF_DIR* dp,DWORD ofs);
 void audio_play(void);
 uint8_t audio_play_song(uint8_t *fname);
