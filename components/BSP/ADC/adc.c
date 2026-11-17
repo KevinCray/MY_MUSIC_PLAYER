@@ -64,12 +64,12 @@ uint32_t adc_get_result_average(adc_channel_t ch, uint32_t times)
     if (NULL == rawdata)
     {
         ESP_LOGE("adc", "Memory for adc is not enough");
+        return 0;
     }
 
     for (uint32_t t = 0; t < times; t++)                /* 多次ADC采样 */
     {
         adc_oneshot_read(adc_handle, ch, &rawdata[t]);  /* 读取原始数据 */
-        vTaskDelay(pdMS_TO_TICKS(5));
     }
 
     for (uint16_t i = 0; i < times - 1; i++)            /* 对数据进行排序 */
@@ -89,6 +89,8 @@ uint32_t adc_get_result_average(adc_channel_t ch, uint32_t times)
     {
         sum += rawdata[i];                                      /* 累加去掉丢弃值以后的数据 */
     }
+
+    free(rawdata);
 
     return sum / (times - 2 * LOST_VAL);                        /* 返回平均值 */
 }

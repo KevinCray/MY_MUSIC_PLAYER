@@ -95,6 +95,7 @@ uint8_t mp3_play_song(uint8_t *fname)
     MP3FrameInfo frame_info;
     uint32_t last_sample_rate = 0;  //记录上次采样率
     uint8_t key;
+    TickType_t last_ui_tick = 0;
 
     //-------复位播放标识
     i2s_play_end = ESP_FAIL;
@@ -173,62 +174,68 @@ uint8_t mp3_play_song(uint8_t *fname)
             break;
         }
 
-        //-------adc音量检测
-        static int last_volume = -1;    //音量初始化，保证每一次开机都更新
-        uint16_t adc_data = adc_get_result_average(ADC_CHAN ,10);   //获取adc数值
-        uint8_t volume = map_volume(adc_data);
-        if (volume != last_volume)
+        if (xTaskGetTickCount() - last_ui_tick >= pdMS_TO_TICKS(50))
         {
-            es8388_hpvol_set(volume);
-            es8388_spkvol_set(volume);
-        }
+            last_ui_tick = xTaskGetTickCount();
 
-        //-------boot按键切换输出模式
-        static int last_boot_state = 1;
-        int boot_state = gpio_get_level(BOOT_GPIO_PIN);
+            //-------adc音量检测
+            static int last_volume = -1;    //音量初始化，保证每一次开机都更新
+            uint16_t adc_data = adc_get_result_average(ADC_CHAN ,10);   //获取adc数值
+            uint8_t volume = map_volume(adc_data);
+            if (volume != last_volume)
+            {
+                last_volume = volume;
+                es8388_hpvol_set(volume);
+                es8388_spkvol_set(volume);
+            }
 
-        if (last_boot_state == 1 && boot_state == 0)
-        {
-            vTaskDelay(pdMS_TO_TICKS(20));
-            if (gpio_get_level(BOOT_GPIO_PIN) == 0)
+            //-------boot按键切换输出模式
+            static int last_boot_state = 1;
+            int boot_state = gpio_get_level(BOOT_GPIO_PIN);
+
+            if (last_boot_state == 1 && boot_state == 0)
             {
-                g_audio_output_mode = !g_audio_output_mode;
-                if (g_audio_output_mode == 0)
+                vTaskDelay(pdMS_TO_TICKS(20));
+                if (gpio_get_level(BOOT_GPIO_PIN) == 0)
                 {
-                    xl9555_pin_write(SPK_EN_IO,0);
-                    es8388_output_cfg(0,1);
-                    es8388_spkvol_set(10);
+                    g_audio_output_mode = !g_audio_output_mode;
+                    if (g_audio_output_mode == 0)
+                    {
+                        xl9555_pin_write(SPK_EN_IO,0);
+                        es8388_output_cfg(0,1);
+                        es8388_spkvol_set(10);
+                    }
+                    else
+                    {
+                        xl9555_pin_write(SPK_EN_IO,1);
+                        es8388_output_cfg(1,0);
+                        es8388_hpvol_set(10);
+                    }
                 }
-                else
+            }
+            last_boot_state = boot_state;
+            
+            //-------按键扫描
+            key = xl9555_key_scan(0);
+            
+            switch (key)
+            {
+            case KEY0_PRES:
+            case KEY1_PRES:
+                i2s_play_next_prev = ESP_OK;
+                break;
+            
+            case KEY2_PRES:
+                if ((g_audiodev.status & 0x0F) == 0x03) //用掩码取低四位，以判断播放状态
                 {
-                    xl9555_pin_write(SPK_EN_IO,1);
-                    es8388_output_cfg(1,0);
-                    es8388_hpvol_set(10);
+                    audio_stop();
                 }
+                else if ((g_audiodev.status & 0x0F) == 0x00)
+                {
+                    audio_start();
+                }
+                break;
             }
-        }
-        last_boot_state = boot_state;
-        
-        //-------按键扫描
-        key = xl9555_key_scan(0);
-        
-        switch (key)
-        {
-        case KEY0_PRES:
-        case KEY1_PRES:
-            i2s_play_next_prev = ESP_OK;
-            break;
-        
-        case KEY2_PRES:
-            if ((g_audiodev.status & 0x0F) == 0x03) //用掩码取低四位，以判断播放状态
-            {
-                audio_stop();
-            }
-            else if ((g_audiodev.status & 0x0F) == 0x00)
-            {
-                audio_start();
-            }
-            break;
         }
 
         //-------暂停时只做按键扫描，不往i2s里写数据
@@ -356,8 +363,6 @@ uint8_t mp3_play_song(uint8_t *fname)
         //-------发送处理好的PCM
         pcm_bytes = out_samples * sizeof(int16_t);
         i2s_table_size += i2s_tx_write((uint8_t *)s_pcm_buf, pcm_bytes); //返回了已发送数据长度
-
-        vTaskDelay(pdMS_TO_TICKS(1));
     }
     
     //-------清理

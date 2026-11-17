@@ -34,6 +34,8 @@ esp_err_t myi2s_init(void)
 {
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM, I2S_ROLE_MASTER);  /* 默认的通道配置(I2S0,主机) */
     chan_cfg.auto_clear = true;                                             /* 自动清除DMA缓冲区遗留的数据 */ 
+    chan_cfg.dma_desc_num = 8;
+    chan_cfg.dma_frame_num = 512;
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_handle, &rx_handle));    /* 分配新的I2S通道 */
 
     i2s_std_config_t std_cfg = {    /* 标准通信模式配置 */
